@@ -18,7 +18,7 @@ public class FilmControllerTests {
     FilmController filmController;
 
     @BeforeEach
-    public void BeforeEach() {
+    public void beforeEach() {
         filmController.findAll().clear();
         Film film = new Film();
         film.setId(Long.valueOf(1));

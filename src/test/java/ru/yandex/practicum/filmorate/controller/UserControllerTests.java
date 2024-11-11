@@ -19,7 +19,7 @@ public class UserControllerTests {
     UserController userController;
 
     @BeforeEach
-    public void BeforeEach() {
+    public void beforeEach() {
         userController.findAll().clear();
         User user = new User();
         user.setId(Long.valueOf(1));
