@@ -20,8 +20,10 @@ public class Film {
     @Size(max = 200)
     String description;
 
+    @NotNull
     LocalDate releaseDate;
 
+    @NotNull
     @Positive
     Integer duration;
 }

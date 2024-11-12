@@ -27,6 +27,18 @@ public class UserController {
     public User create(@Valid @RequestBody User user) {
         log.info("Добавление пользователя.");
         // проверяем выполнение необходимых условий
+        checkConditions(user);
+
+        // формируем дополнительные данные
+        user.setId(getNextId());
+
+        // сохраняем нового пользователя в памяти приложения
+        users.put(user.getId(), user);
+        return user;
+    }
+
+    // вспомогательный метод для выполнение необходимых условий (заполнение имени пользователя и валидация даты рождения)
+    private void checkConditions(User user) {
         if (user.getName() == null) {
             user.setName(user.getLogin());
         }
@@ -35,13 +47,6 @@ public class UserController {
             log.warn("Дата рождения не может быть в будущем");
             throw new ValidationException("Дата рождения не может быть в будущем");
         }
-
-        // формируем дополнительные данные
-        user.setId(getNextId());
-
-        // сохраняем нового пользователя в памяти приложения
-        users.put(user.getId(), user);
-        return user;
     }
 
     // вспомогательный метод для генерации идентификатора нового пользователя
@@ -66,17 +71,9 @@ public class UserController {
         if (users.containsKey(newUser.getId())) {
             User oldUser = users.get(newUser.getId());
 
-            if (newUser.getName() == null) {
-                newUser.setName(newUser.getLogin());
-            }
-
-            if (newUser.getBirthday().isAfter(LocalDate.now())) {
-                log.warn("Дата рождения не может быть в будущем");
-                throw new ValidationException("Дата рождения не может быть в будущем");
-            }
+            checkConditions(newUser);
 
             // если пользователь найден и все условия соблюдены, обновляем информацию о нём
-
             if (newUser.getEmail() != null) {
                 oldUser.setEmail(newUser.getEmail());
             }

@@ -20,5 +20,7 @@ public class User {
     String login;
 
     String name;
+
+    @NotNull
     LocalDate birthday;
 }
