@@ -2,7 +2,6 @@ package ru.yandex.practicum.filmorate.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.User;
@@ -32,10 +31,7 @@ public class FilmService {
         checkId(userId);
 
         Film film = filmStorage.findFilmById(id);
-        checkFilm(film, id);
-
         User user = userStorage.findUserById(userId);
-        checkUser(user, userId);
 
         // если пользователь и фильм найдены и все условия соблюдены, добавляем лайк от пользователя
         Set<Long> userLikes = film.getLikes();
@@ -58,10 +54,7 @@ public class FilmService {
         checkId(userId);
 
         Film film = filmStorage.findFilmById(id);
-        checkFilm(film, id);
-
         User user = userStorage.findUserById(userId);
-        checkUser(user, userId);
 
         // если пользователь и фильм найдены и все условия соблюдены, удаляем лайк от пользователя
         Set<Long> userLikes = film.getLikes();
@@ -88,20 +81,6 @@ public class FilmService {
         if (id == null) {
             log.warn("Id должен быть указан");
             throw new ValidationException("Id должен быть указан");
-        }
-    }
-
-    private void checkFilm(Film film, Long id) {
-        if (film == null) {
-            log.warn("Фильм с id: " + id + " не найден");
-            throw new NotFoundException("Фильм с id: " + id + " не найден");
-        }
-    }
-
-    private void checkUser(User user, Long userId) {
-        if (user == null) {
-            log.warn("Пользователь с id: " + userId + " не найден");
-            throw new NotFoundException("Пользователь с id: " + userId + " не найден");
         }
     }
 }

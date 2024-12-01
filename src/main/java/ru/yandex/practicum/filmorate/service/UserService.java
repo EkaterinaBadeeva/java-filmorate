@@ -2,7 +2,6 @@ package ru.yandex.practicum.filmorate.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.UserStorage;
@@ -33,10 +32,7 @@ public class UserService {
         checkEqualsIds(id, friendId);
 
         User user = userStorage.findUserById(id);
-        checkUser(user, id);
-
         User friend = userStorage.findUserById(friendId);
-        checkUser(friend, friendId);
 
         // если пользователь найден и все условия соблюдены, добавляем его в друзья
         Set<Long> userFriends = user.getFriends();
@@ -69,10 +65,7 @@ public class UserService {
         checkEqualsIds(id, friendId);
 
         User user = userStorage.findUserById(id);
-        checkUser(user, id);
-
         User friend = userStorage.findUserById(friendId);
-        checkUser(friend, friendId);
 
         // если пользователь найден и все условия соблюдены, удаляем его из друзей
         Set<Long> userFriends = user.getFriends();
@@ -96,8 +89,6 @@ public class UserService {
         checkId(id);
 
         User user = userStorage.findUserById(id);
-        checkUser(user, id);
-
         Set<Long> idsFriends = user.getFriends();
 
         // если пользователь найден и все условия соблюдены, то
@@ -122,14 +113,10 @@ public class UserService {
         checkEqualsIds(id, otherId);
 
         User user = userStorage.findUserById(id);
-        checkUser(user, id);
-
         User otherUser = userStorage.findUserById(otherId);
-        checkUser(otherUser, otherId);
 
         // если пользователи найдены и все условия соблюдены, то
         // получаем список пользователей, общих с другим пользователем.
-
         Set<User> commonFriends = new HashSet<>();
 
         for (Long idFriend : user.getFriends()) {
@@ -147,13 +134,6 @@ public class UserService {
         if (id == null) {
             log.warn("Id должен быть указан");
             throw new ValidationException("Id должен быть указан");
-        }
-    }
-
-    private void checkUser(User user, Long id) {
-        if (user == null) {
-            log.warn("Пользователь с id: " + id + " не найден");
-            throw new NotFoundException("Пользователь с id: " + id + " не найден");
         }
     }
 
