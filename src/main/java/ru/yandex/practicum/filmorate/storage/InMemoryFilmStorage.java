@@ -2,6 +2,7 @@ package ru.yandex.practicum.filmorate.storage;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 
@@ -20,6 +21,15 @@ public class InMemoryFilmStorage implements FilmStorage {
     public Collection<Film> findAll() {
         log.info("Получение всех фильмов.");
         return films.values();
+    }
+
+    public Film findFilmById(Long id) {
+        log.info("Получение фильма по id.");
+        Film film = films.get(id);
+        if (film == null) {
+            throw new NotFoundException("Фильм с Id " + id + " не найден");
+        }
+        return film;
     }
 
     public Film create(Film film) {
@@ -55,7 +65,6 @@ public class InMemoryFilmStorage implements FilmStorage {
             }
 
             // если фильм найден и все условия соблюдены, обновляем информацию о нём
-
             if (newFilm.getName() != null) {
                 oldFilm.setName(newFilm.getName());
             }
@@ -74,7 +83,7 @@ public class InMemoryFilmStorage implements FilmStorage {
 
             return oldFilm;
         }
-        throw new ValidationException("Фильм с названием = " + newFilm.getName() + " не найден");
+        throw new NotFoundException("Фильм с названием = " + newFilm.getName() + " не найден");
     }
 
     // вспомогательный метод для генерации идентификатора нового пользователя

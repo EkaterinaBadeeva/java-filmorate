@@ -2,13 +2,12 @@ package ru.yandex.practicum.filmorate.storage;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 
 import java.time.LocalDate;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
 @Component
@@ -18,6 +17,15 @@ public class InMemoryUserStorage implements UserStorage {
     public Collection<User> findAll() {
         log.info("Получение списка всех пользователей.");
         return users.values();
+    }
+
+    public User findUserById(Long id) {
+        log.info("Получение пользователя по Id.");
+        User user = users.get(id);
+        if (user == null) {
+            throw new NotFoundException("Пользователь с Id " + id + " не найден");
+        }
+        return user;
     }
 
     public User create(User user) {
@@ -64,13 +72,18 @@ public class InMemoryUserStorage implements UserStorage {
             }
             return oldUser;
         }
-        throw new ValidationException("Пользователь с email = " + newUser.getEmail() + " не найден");
+        throw new NotFoundException("Пользователь с email = " + newUser.getEmail() + " не найден");
     }
 
     // вспомогательный метод для выполнение необходимых условий (заполнение имени пользователя и валидация даты рождения)
     private void checkConditions(User user) {
         if (user.getName() == null) {
             user.setName(user.getLogin());
+        }
+
+        if (user.getName().isEmpty()) {
+            log.warn("Задано пустое имя пользователя");
+            throw new ValidationException("Задано пустое имя пользователя");
         }
 
         if (user.getBirthday().isAfter(LocalDate.now())) {
