@@ -3,92 +3,74 @@ package ru.yandex.practicum.filmorate.controller;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.service.FilmService;
+import ru.yandex.practicum.filmorate.storage.FilmStorage;
 
-import java.time.LocalDate;
+import java.text.MessageFormat;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
 @Slf4j
 @RestController
 @RequestMapping("/films")
 public class FilmController {
+    private final FilmStorage filmStorage;
+    private final FilmService filmService;
 
-    private final Map<Long, Film> films = new HashMap<>();
-    private static final LocalDate MIN_RELEASE_DATE = LocalDate.of(1895, 12, 28);
+    public FilmController(FilmStorage filmStorage, FilmService filmService) {
+        this.filmStorage = filmStorage;
+        this.filmService = filmService;
+    }
 
     @GetMapping
     public Collection<Film> findAll() {
         log.info("Получение всех фильмов.");
-        return films.values();
+        return filmStorage.findAll();
+    }
+
+    //GET /films/{id}
+    // получить фильм по id
+    @GetMapping("/{id}")
+    public Film findFilmById(@PathVariable Long id) {
+        log.info("Получение фильма по id.");
+        return filmStorage.findFilmById(id);
     }
 
     @PostMapping
     public Film create(@Valid @RequestBody Film film) {
         log.info("Добавление фильма.");
-        // проверяем выполнение необходимых условий
-
-        if (film.getReleaseDate().isBefore(MIN_RELEASE_DATE)) {
-            log.warn("Указанна дата релиза раньше 28 декабря 1895 года");
-            throw new ValidationException("Дата релиза — не раньше 28 декабря 1895 года");
-        }
-
-        // формируем дополнительные данные
-        film.setId(getNextId());
-
-        // сохраняем нового пользователя в памяти приложения
-        films.put(film.getId(), film);
-        return film;
-    }
-
-    // вспомогательный метод для генерации идентификатора нового пользователя
-    private long getNextId() {
-        long currentMaxId = films.keySet()
-                .stream()
-                .mapToLong(id -> id)
-                .max()
-                .orElse(0);
-        return ++currentMaxId;
+        return filmStorage.create(film);
     }
 
     @PutMapping
     public Film update(@Valid @RequestBody Film newFilm) {
         log.info("Обновление фильма.");
-        // проверяем необходимые условия
-        if (newFilm.getId() == null) {
-            throw new ValidationException("Id должен быть указан");
-        }
+        return filmStorage.update(newFilm);
+    }
 
-        if (films.containsKey(newFilm.getId())) {
-            Film oldFilm = films.get(newFilm.getId());
+    //PUT /films/{id}/like/{userId}
+    // пользователь ставит лайк фильму
+    @PutMapping("/{id}/like/{userId}")
+    public Film addUserLike(@PathVariable Long id, @PathVariable Long userId) {
+        log.info("Пользователь ставит лайк фильму.");
+        return filmService.addUserLike(id, userId);
+    }
 
-            if (newFilm.getReleaseDate().isBefore(MIN_RELEASE_DATE)) {
-                log.warn("Указанна дата релиза раньше 28 декабря 1895 года");
-                throw new ValidationException("Дата релиза должна быть не раньше 28 декабря 1895 года");
-            }
+    //DELETE /films/{id}/like/{userId}
+    // пользователь удаляет лайк
+    @DeleteMapping("/{id}/like/{userId}")
+    public Film deleteUserLike(@PathVariable Long id, @PathVariable Long userId) {
+        log.info("Пользователь удаляет лайк фильму.");
+        return filmService.deleteUserLike(id, userId);
+    }
 
-            // если фильм найден и все условия соблюдены, обновляем информацию о нём
-
-            if (newFilm.getName() != null) {
-                oldFilm.setName(newFilm.getName());
-            }
-
-            if (newFilm.getDescription() != null) {
-                oldFilm.setDescription(newFilm.getDescription());
-            }
-
-            if (newFilm.getReleaseDate() != null) {
-                oldFilm.setReleaseDate(newFilm.getReleaseDate());
-            }
-
-            if (newFilm.getDuration() != null) {
-                oldFilm.setDuration(newFilm.getDuration());
-            }
-
-            return oldFilm;
-        }
-        throw new ValidationException("Фильм с названием = " + newFilm.getName() + " не найден");
+    //GET /films/popular?count={count}
+    // возвращает список из первых count фильмов по количеству лайков
+    // Если значение параметра count не задано, возращает первые 10
+    @GetMapping("/popular")
+    public List<Film> findBestFilm(@RequestParam(defaultValue = "10") Long count) {
+        log.info(MessageFormat.format("Возвращает список из первых {0} фильмов по количеству лайков", count));
+        return filmService.findBestFilm(count);
     }
 }
