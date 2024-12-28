@@ -19,6 +19,7 @@ public final class UserMapper {
                 .build();
         return dto;
     }
+
     public static User mapToUser(UserDto dto) {
         User user = User.builder()
                 .id(dto.getId())
