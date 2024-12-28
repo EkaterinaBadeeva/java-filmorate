@@ -84,12 +84,12 @@ public class UserDbStorage implements UserStorage {
 
         checkConditions(newUser);
 
-        jdbcTemplate.update(sqlQuery
-                , newUser.getEmail()
-                , newUser.getLogin()
-                , newUser.getName()
-                , newUser.getBirthday()
-                , newUser.getId());
+        jdbcTemplate.update(sqlQuery,
+                newUser.getEmail(),
+                newUser.getLogin(),
+                newUser.getName(),
+                newUser.getBirthday(),
+                newUser.getId());
 
         if (newUser.getId() == 0) {
             log.warn("Id должен быть указан");
