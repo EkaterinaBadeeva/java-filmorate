@@ -149,9 +149,7 @@ public class FilmDbStorage implements FilmStorage {
         String sqlQuery = "UPDATE films SET " +
                 "film_name = ?, description = ?, release_Date = ?, duration = ?, rating_id = ? " +
                 "where film_id = ?;";
-//        UPDATE films SET  film_name = 'film',
-//        description = 'description',
-//        releaseDate = '1946-08-20', duration = 100, rating_id = 1 where film_id = 1;
+
         if (findFilmById(newFilm.getId()) == null) {
             throw new NotFoundException("Фильм с названием = " + newFilm.getName() + " не найден");
         }
@@ -190,17 +188,17 @@ public class FilmDbStorage implements FilmStorage {
             Integer genreId = genre.getId();
             genreService.findGenreById(genreId);
 
-                String sqlQuery = "insert into film_genre(film_id, genre_id) " +
-                        "values (?, ?);";
-                KeyHolder keyHolder = new GeneratedKeyHolder();
-                jdbcTemplate.update(connection -> {
-                    PreparedStatement stmt = connection.prepareStatement(sqlQuery, new String[]{"film_id"});
+            String sqlQuery = "insert into film_genre(film_id, genre_id) " +
+                    "values (?, ?);";
+            KeyHolder keyHolder = new GeneratedKeyHolder();
+            jdbcTemplate.update(connection -> {
+                PreparedStatement stmt = connection.prepareStatement(sqlQuery, new String[]{"film_id"});
 
-                    stmt.setLong(1, filmId);
-                    stmt.setInt(2, genreId);
+                stmt.setLong(1, filmId);
+                stmt.setInt(2, genreId);
 
-                    return stmt;
-                }, keyHolder);
+                return stmt;
+            }, keyHolder);
 
         }
     }

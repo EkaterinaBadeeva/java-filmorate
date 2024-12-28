@@ -34,7 +34,7 @@ public class FilmDto {
     @Positive
     private Integer duration;
 
-    private Set<Long> likes = new HashSet<>();;
+    private Set<Long> likes = new HashSet<>();
     private List<Genre> genres = new ArrayList<>();
     private Rating mpa;
 }

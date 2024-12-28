@@ -77,9 +77,6 @@ public class UserDbStorage implements UserStorage {
         String sqlQuery = "UPDATE users SET " +
                 "email = ?, user_login = ?, user_name = ?, birthday = ? " +
                 "where user_id = ?;";
-//        UPDATE users SET  email = 'mail@mail.ru',
-//        user_login = 'clore', user_name = 'Иванов Иван Иванович',
-//        birthday = '1946-08-20' where user_id = 1;
 
         if (findUserById(newUser.getId()) == null) {
             throw new NotFoundException("Пользователь с email = " + newUser.getEmail() + " не найден");
