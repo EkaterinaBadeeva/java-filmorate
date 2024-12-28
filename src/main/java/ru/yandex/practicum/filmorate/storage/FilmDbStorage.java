@@ -166,13 +166,13 @@ public class FilmDbStorage implements FilmStorage {
             ratingId = 0;
         }
 
-        jdbcTemplate.update(sqlQuery
-                , newFilm.getName()
-                , newFilm.getDescription()
-                , newFilm.getReleaseDate()
-                , newFilm.getDuration()
-                , ratingId
-                , newFilm.getId());
+        jdbcTemplate.update(sqlQuery,
+                newFilm.getName(),
+                newFilm.getDescription(),
+                newFilm.getReleaseDate(),
+                newFilm.getDuration(),
+                ratingId,
+                newFilm.getId());
         if (newFilm.getId() == 0) {
             throw new ValidationException("Id должен быть указан");
         }
