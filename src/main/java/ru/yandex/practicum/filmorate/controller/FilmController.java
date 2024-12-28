@@ -2,7 +2,10 @@ package ru.yandex.practicum.filmorate.controller;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.*;
+import ru.yandex.practicum.filmorate.dto.FilmDto;
+import ru.yandex.practicum.filmorate.mappers.FilmMapper;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.service.FilmService;
 import ru.yandex.practicum.filmorate.storage.FilmStorage;
@@ -10,10 +13,12 @@ import ru.yandex.practicum.filmorate.storage.FilmStorage;
 import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
 @RequestMapping("/films")
+@Qualifier("filmDbStorage")
 public class FilmController {
     private final FilmStorage filmStorage;
     private final FilmService filmService;
@@ -24,53 +29,65 @@ public class FilmController {
     }
 
     @GetMapping
-    public Collection<Film> findAll() {
+    public Collection<FilmDto> findAll() {
         log.info("Получение всех фильмов.");
-        return filmStorage.findAll();
+        Collection<Film> films = filmStorage.findAll();
+        return films.stream()
+                .map(FilmMapper::mapToFilmDto)
+                .collect(Collectors.toList());
     }
 
     //GET /films/{id}
     // получить фильм по id
     @GetMapping("/{id}")
-    public Film findFilmById(@PathVariable Long id) {
+    public FilmDto findFilmById(@PathVariable Long id) {
         log.info("Получение фильма по id.");
-        return filmStorage.findFilmById(id);
+        Film film = filmStorage.findFilmById(id);
+        return FilmMapper.mapToFilmDto(film);
     }
 
     @PostMapping
-    public Film create(@Valid @RequestBody Film film) {
+    public FilmDto create(@Valid @RequestBody FilmDto filmDto) {
         log.info("Добавление фильма.");
-        return filmStorage.create(film);
+        Film film = FilmMapper.mapToFilm(filmDto);
+        film = filmStorage.create(film);
+        return FilmMapper.mapToFilmDto(film);
     }
 
     @PutMapping
-    public Film update(@Valid @RequestBody Film newFilm) {
+    public FilmDto update(@Valid @RequestBody FilmDto filmDto) {
         log.info("Обновление фильма.");
-        return filmStorage.update(newFilm);
+        Film newFilm = FilmMapper.mapToFilm(filmDto);
+        newFilm = filmStorage.update(newFilm);
+        return FilmMapper.mapToFilmDto(newFilm);
     }
 
     //PUT /films/{id}/like/{userId}
     // пользователь ставит лайк фильму
     @PutMapping("/{id}/like/{userId}")
-    public Film addUserLike(@PathVariable Long id, @PathVariable Long userId) {
+    public FilmDto addUserLike(@PathVariable Long id, @PathVariable Long userId) {
         log.info("Пользователь ставит лайк фильму.");
-        return filmService.addUserLike(id, userId);
+        return FilmMapper.mapToFilmDto(filmService.addUserLike(id, userId));
     }
 
     //DELETE /films/{id}/like/{userId}
     // пользователь удаляет лайк
     @DeleteMapping("/{id}/like/{userId}")
-    public Film deleteUserLike(@PathVariable Long id, @PathVariable Long userId) {
+    public FilmDto deleteUserLike(@PathVariable Long id, @PathVariable Long userId) {
         log.info("Пользователь удаляет лайк фильму.");
-        return filmService.deleteUserLike(id, userId);
+        Film film = filmService.deleteUserLike(id, userId);
+        return FilmMapper.mapToFilmDto(film);
     }
 
     //GET /films/popular?count={count}
     // возвращает список из первых count фильмов по количеству лайков
     // Если значение параметра count не задано, возращает первые 10
     @GetMapping("/popular")
-    public List<Film> findBestFilm(@RequestParam(defaultValue = "10") Long count) {
+    public List<FilmDto> findBestFilm(@RequestParam(defaultValue = "10") Long count) {
         log.info(MessageFormat.format("Возвращает список из первых {0} фильмов по количеству лайков", count));
-        return filmService.findBestFilm(count);
+        List<Film> bestFilms = filmService.findBestFilm(count);
+        return bestFilms.stream()
+                .map(FilmMapper::mapToFilmDto)
+                .collect(Collectors.toList());
     }
 }
