@@ -52,6 +52,7 @@ public class FilmRowMapper implements RowMapper<Film> {
                 .collect(Collectors.toSet())
         );
     }
+
     public void setGenresOfFilm(Film film) {
 
         String sqlQueryGenres = "SELECT genre.genre_id, genre.genre_name FROM FILM_GENRE " +

@@ -31,6 +31,7 @@ public class UserRowMapper implements RowMapper<User> {
         setFriendsOfUser(user);
         return user;
     }
+
     public void setFriendsOfUser(User user) {
         String sqlQueryFriends = "SELECT friend_id FROM FRIENDSHIP where user_id = ?;";
 
