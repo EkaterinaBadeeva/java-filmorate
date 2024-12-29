@@ -17,6 +17,7 @@ import java.sql.PreparedStatement;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.Objects;
+import java.util.Optional;
 
 @Slf4j
 @Primary
@@ -37,28 +38,35 @@ public class UserDbStorage implements UserStorage {
     }
 
     @Override
-    public User findUserById(Long id) {
+    public Optional<User> findUserById(Long id) {
         log.info("Получение пользователя по Id.");
         String sqlQuery = "select user_id, email, user_login, user_name, birthday " +
                 "from users where user_id = ?;";
         User user;
         try {
             user = jdbcTemplate.queryForObject(sqlQuery, userRowMapper, id);
-            return user;
+            return Optional.ofNullable(user);
         } catch (EmptyResultDataAccessException ignored) {
-            throw new NotFoundException("Пользователь с Id " + id + " не найден");
+            return Optional.empty();
         }
+    }
+
+    @Override
+    public User getUserById(Long id) {
+        return findUserById(id)
+                .orElseThrow(() -> new NotFoundException("Пользователь с id " + id + " не найден"));
     }
 
     @Override
     public User create(User user) {
         log.info("Добавление пользователя.");
+        checkConditions(user);
         String sqlQuery = "insert into users(email, user_login, user_name, birthday) " +
                 "values ( ?, ?, ?, ?)";
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement stmt = connection.prepareStatement(sqlQuery, new String[]{"user_id"});
-            checkConditions(user);
+
             stmt.setString(1, user.getEmail());
             stmt.setString(2, user.getLogin());
             stmt.setString(3, user.getName());
@@ -78,7 +86,7 @@ public class UserDbStorage implements UserStorage {
                 "email = ?, user_login = ?, user_name = ?, birthday = ? " +
                 "where user_id = ?;";
 
-        if (findUserById(newUser.getId()) == null) {
+        if (findUserById(newUser.getId()).isEmpty()) {
             throw new NotFoundException("Пользователь с email = " + newUser.getEmail() + " не найден");
         }
 
@@ -115,5 +123,19 @@ public class UserDbStorage implements UserStorage {
             log.warn("Дата рождения не может быть в будущем");
             throw new ValidationException("Дата рождения не может быть в будущем");
         }
+    }
+
+    public void insertUserData(String email, String login, String name, String date) {
+        String sqlQuery = "insert into users(email, user_login, user_name, birthday) " +
+                "values ( ?, ?, ?, ?)";
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement stmt = connection.prepareStatement(sqlQuery, new String[]{"user_id"});
+            stmt.setString(1, email);
+            stmt.setString(2, login);
+            stmt.setString(3, name);
+            stmt.setString(4, date);
+            return stmt;
+        }, keyHolder);
     }
 }

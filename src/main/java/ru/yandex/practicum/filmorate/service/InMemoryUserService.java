@@ -2,6 +2,7 @@ package ru.yandex.practicum.filmorate.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.UserStorage;
@@ -33,8 +34,8 @@ public class InMemoryUserService implements UserService {
 
         checkEqualsIds(id, friendId);
 
-        User user = userStorage.findUserById(id);
-        User friend = userStorage.findUserById(friendId);
+        User user = getUserById(id);
+        User friend = getUserById(friendId);
 
         // если пользователь найден и все условия соблюдены, добавляем его в друзья
         Set<Long> userFriends = user.getFriends();
@@ -66,8 +67,8 @@ public class InMemoryUserService implements UserService {
 
         checkEqualsIds(id, friendId);
 
-        User user = userStorage.findUserById(id);
-        User friend = userStorage.findUserById(friendId);
+        User user = getUserById(id);
+        User friend = getUserById(friendId);
 
         // если пользователь найден и все условия соблюдены, удаляем его из друзей
         Set<Long> userFriends = user.getFriends();
@@ -90,14 +91,14 @@ public class InMemoryUserService implements UserService {
         // проверяем необходимые условия
         checkId(id);
 
-        User user = userStorage.findUserById(id);
+        User user = getUserById(id);
         Set<Long> idsFriends = user.getFriends();
 
         // если пользователь найден и все условия соблюдены, то
         // получаем список пользователей, являющихся друзьями пользователя.
         Set<User> friends = new HashSet<>();
         for (Long idFriend : idsFriends) {
-            User friend = userStorage.findUserById(idFriend);
+            User friend = getUserById(idFriend);
             friends.add(friend);
         }
         return (List<User>) friends;
@@ -114,8 +115,8 @@ public class InMemoryUserService implements UserService {
 
         checkEqualsIds(id, otherId);
 
-        User user = userStorage.findUserById(id);
-        User otherUser = userStorage.findUserById(otherId);
+        User user = getUserById(id);
+        User otherUser = getUserById(otherId);
 
         // если пользователи найдены и все условия соблюдены, то
         // получаем список пользователей, общих с другим пользователем.
@@ -124,7 +125,7 @@ public class InMemoryUserService implements UserService {
         for (Long idFriend : user.getFriends()) {
             for (Long idOtherUserFriend : otherUser.getFriends()) {
                 if (Objects.equals(idFriend, idOtherUserFriend)) {
-                    commonFriends.add(userStorage.findUserById(idFriend));
+                    commonFriends.add(getUserById(idFriend));
                 }
             }
         }
@@ -144,5 +145,10 @@ public class InMemoryUserService implements UserService {
             log.warn("Id пользователей не могут быть одинаковыми");
             throw new ValidationException("Id пользователей не могут быть одинаковыми");
         }
+    }
+
+    private User getUserById(Long id) {
+        return userStorage.findUserById(id)
+                .orElseThrow(() -> new NotFoundException("Пользователь не найден с ID: " + id));
     }
 }

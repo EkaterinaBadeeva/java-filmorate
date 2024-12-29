@@ -19,13 +19,19 @@ public class InMemoryUserStorage implements UserStorage {
         return users.values();
     }
 
-    public User findUserById(Long id) {
+    public Optional<User> findUserById(Long id) {
         log.info("Получение пользователя по Id.");
         User user = users.get(id);
         if (user == null) {
-            throw new NotFoundException("Пользователь с Id " + id + " не найден");
+            return Optional.empty();
+        } else {
+            return Optional.of(user);
         }
-        return user;
+    }
+
+    public User getUserById(Long id) {
+        return findUserById(id)
+                .orElseThrow(() -> new NotFoundException("Пользователь не найден с ID: " + id));
     }
 
     public User create(User user) {

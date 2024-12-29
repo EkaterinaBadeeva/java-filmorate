@@ -41,8 +41,8 @@ public class UserDbService implements UserService {
 
         checkEqualsIds(id, friendId);
 
-        User user = userStorage.findUserById(id);
-        User friend = userStorage.findUserById(friendId);
+        User user = userStorage.getUserById(id);
+        User friend = userStorage.getUserById(friendId);
 
         if (user.getFriends().contains(friendId)) {
             throw new CommonException("Вы уже добавили этого пользователя в друзья");
@@ -59,18 +59,8 @@ public class UserDbService implements UserService {
             return stmt;
         }, keyHolder);
 
-//        String sqlQueryFroFiend = "insert into friendship(user_id, friend_id) values (?, ?);";
-//        keyHolder = new GeneratedKeyHolder();
-//        jdbcTemplate.update(connection -> {
-//            PreparedStatement stmt = connection.prepareStatement(sqlQuery, new String[]{"user_id"});
-//            stmt.setLong(1, friendId);
-//            stmt.setLong(2, id);
-//
-//            return stmt;
-//        }, keyHolder);
-
         userRowMapper.setFriendsOfUser(user);
-       // userRowMapper.setFriendsOfUser(friend);
+
         return friend;
     }
 
@@ -85,8 +75,8 @@ public class UserDbService implements UserService {
 
         checkEqualsIds(id, friendId);
 
-        User user = userStorage.findUserById(id);
-        User friend = userStorage.findUserById(friendId);
+        User user = userStorage.getUserById(id);
+        User friend = userStorage.getUserById(friendId);
 
         // если пользователь найден и все условия соблюдены, удаляем его из друзей
         if (user.getFriends().contains(friendId)) {
@@ -96,7 +86,7 @@ public class UserDbService implements UserService {
           //  jdbcTemplate.update(sqlQuery, friendId, id);
         }
 
-        return userStorage.findUserById(user.getId());
+        return userStorage.getUserById(user.getId());
     }
 
     //GET /users/{id}/friends
@@ -107,7 +97,7 @@ public class UserDbService implements UserService {
         // проверяем необходимые условия
         checkId(id);
 
-        User user = userStorage.findUserById(id);
+        User user = userStorage.getUserById(id);
 
         // если пользователь найден и все условия соблюдены, то
         // получаем список пользователей, являющихся друзьями пользователя.

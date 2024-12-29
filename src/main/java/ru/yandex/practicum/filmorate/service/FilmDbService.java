@@ -43,8 +43,8 @@ public class FilmDbService implements FilmService {
         checkId(id);
         checkId(userId);
 
-        Film film = filmStorage.findFilmById(id);
-        User user = userStorage.findUserById(userId);
+        Film film = filmStorage.getFilmById(id);
+        User user = userStorage.getUserById(userId);
 
         if (film.getLikes().contains(userId)) {
             throw new CommonException("Вы уже поставили лайк этому фильму. Мы рады, что он вам так понравился");
@@ -73,8 +73,8 @@ public class FilmDbService implements FilmService {
         checkId(id);
         checkId(userId);
 
-        Film film = filmStorage.findFilmById(id);
-        User user = userStorage.findUserById(userId);
+        Film film = filmStorage.getFilmById(id);
+        User user = userStorage.getUserById(userId);
         if (film.getLikes().contains(userId)) {
 
             String sqlQuery = "DELETE FROM LIKES WHERE  FILM_ID =? AND USER_ID=?;";
@@ -82,7 +82,7 @@ public class FilmDbService implements FilmService {
             jdbcTemplate.update(sqlQuery, id, userId);
 
         }
-        return filmStorage.findFilmById(film.getId());
+        return filmStorage.getFilmById(film.getId());
     }
 
     //GET /films/popular?count={count}

@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.dto.FilmDto;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.mappers.FilmMapper;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.service.FilmService;
@@ -42,8 +43,9 @@ public class FilmController {
     @GetMapping("/{id}")
     public FilmDto findFilmById(@PathVariable Long id) {
         log.info("Получение фильма по id.");
-        Film film = filmStorage.findFilmById(id);
-        return FilmMapper.mapToFilmDto(film);
+        return filmStorage.findFilmById(id)
+                .map(FilmMapper::mapToFilmDto)
+                .orElseThrow(() -> new NotFoundException("Фильм с Id " + id + " не найден"));
     }
 
     @PostMapping

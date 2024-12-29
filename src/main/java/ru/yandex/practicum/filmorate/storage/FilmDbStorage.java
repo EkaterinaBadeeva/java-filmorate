@@ -43,59 +43,35 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     @Override
-    public Film findFilmById(Long id) {
+    public Optional<Film> findFilmById(Long id) {
         log.info("Получение фильма по id.");
         String sqlQuery = "select film_id, film_name, description, release_Date, duration, rating_id " +
                 "from films where film_id = ?;";
         Film film;
         try {
             film = jdbcTemplate.queryForObject(sqlQuery, filmRowMapper, id);
-
-            return film;
+            return Optional.ofNullable(film);
         } catch (EmptyResultDataAccessException ignored) {
-            throw new NotFoundException("Фильм с Id " + id + " не найден");
+            return Optional.empty();
         }
+    }
+
+    @Override
+    public Film getFilmById(Long id) {
+        return findFilmById(id)
+                .orElseThrow(() -> new NotFoundException("Фильм с Id " + id + " не найден"));
     }
 
     @Override
     public Film create(Film newFilm) {
         log.info("Добавление фильма.");
-
-        try {
-            Rating mpa = newFilm.getMpa();
-            if (mpa != null) {
-                ratingService.findRatingById(mpa.getId());
-            }
-
-            List<Genre> genres = newFilm.getGenres();
-            if (genres != null) {
-                Set<Genre> setGenre = new LinkedHashSet<>(genres);
-                genres = new ArrayList<>(setGenre);
-
-                for (Genre genre : genres) {
-                    if (genre != null) {
-                        genreService.findGenreById(genre.getId());
-                    }
-                }
-
-                newFilm.setGenres(genres);
-            } else {
-                newFilm.setGenres(new ArrayList<>());
-            }
-        } catch (Exception e) {
-            throw new ValidationException(e.getMessage());
-        }
-
+        checkConditions(newFilm);
 
         String sqlQuery = "insert into films(film_name, description, release_Date, duration, rating_id) " +
                 "values (?, ?, ?, ?, ?);";
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement stmt = connection.prepareStatement(sqlQuery, new String[]{"film_id"});
-            if (newFilm.getReleaseDate().isBefore(MIN_RELEASE_DATE)) {
-                log.warn("Указанна дата релиза раньше 28 декабря 1895 года");
-                throw new ValidationException("Дата релиза — не раньше 28 декабря 1895 года");
-            }
 
             stmt.setString(1, newFilm.getName());
             stmt.setString(2, newFilm.getDescription());
@@ -121,41 +97,14 @@ public class FilmDbStorage implements FilmStorage {
     public Film update(Film newFilm) {
         log.info("Обновление фильма.");
 
-        try {
-            Rating mpa = newFilm.getMpa();
-            if (mpa != null) {
-                ratingService.findRatingById(mpa.getId());
-            }
-
-            List<Genre> genres = newFilm.getGenres();
-            if (genres != null) {
-                Set<Genre> setGenre = new LinkedHashSet<>(genres);
-                genres = new ArrayList<>(setGenre);
-
-                for (Genre genre : genres) {
-                    if (genre != null) {
-                        genreService.findGenreById(genre.getId());
-                    }
-                }
-
-                newFilm.setGenres(genres);
-            } else {
-                newFilm.setGenres(new ArrayList<>());
-            }
-        } catch (Exception e) {
-            throw new ValidationException(e.getMessage());
-        }
+        checkConditions(newFilm);
 
         String sqlQuery = "UPDATE films SET " +
                 "film_name = ?, description = ?, release_Date = ?, duration = ?, rating_id = ? " +
                 "where film_id = ?;";
 
-        if (findFilmById(newFilm.getId()) == null) {
+        if (findFilmById(newFilm.getId()).isEmpty()) {
             throw new NotFoundException("Фильм с названием = " + newFilm.getName() + " не найден");
-        }
-        if (newFilm.getReleaseDate().isBefore(MIN_RELEASE_DATE)) {
-            log.warn("Указанна дата релиза раньше 28 декабря 1895 года");
-            throw new ValidationException("Дата релиза должна быть не раньше 28 декабря 1895 года");
         }
 
         Rating mpa = newFilm.getMpa();
@@ -201,5 +150,52 @@ public class FilmDbStorage implements FilmStorage {
             }, keyHolder);
 
         }
+    }
+    private void checkConditions(Film film) {
+        try {
+            Rating mpa = film.getMpa();
+            if (mpa != null) {
+                ratingService.findRatingById(mpa.getId());
+            }
+
+            List<Genre> genres = film.getGenres();
+            if (genres != null) {
+                Set<Genre> setGenre = new LinkedHashSet<>(genres);
+                genres = new ArrayList<>(setGenre);
+
+                for (Genre genre : genres) {
+                    if (genre != null) {
+                        genreService.findGenreById(genre.getId());
+                    }
+                }
+
+                film.setGenres(genres);
+            } else {
+                film.setGenres(new ArrayList<>());
+            }
+        } catch (Exception e) {
+            throw new ValidationException(e.getMessage());
+        }
+
+        if (film.getReleaseDate().isBefore(MIN_RELEASE_DATE)) {
+            log.warn("Указанна дата релиза раньше 28 декабря 1895 года");
+            throw new ValidationException("Дата релиза — не раньше 28 декабря 1895 года");
+        }
+    }
+
+    public void insertFilmData(String name, String description, String date, Integer duration) {
+        String sqlQuery = "insert into films(film_name, description, release_Date, duration) " +
+                "values (?, ?, ?, ?);";
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement stmt = connection.prepareStatement(sqlQuery, new String[]{"film_id"});
+
+            stmt.setString(1, name);
+            stmt.setString(2, description);
+            stmt.setString(3, date);
+            stmt.setInt(4, duration);
+
+            return stmt;
+        }, keyHolder);
     }
 }

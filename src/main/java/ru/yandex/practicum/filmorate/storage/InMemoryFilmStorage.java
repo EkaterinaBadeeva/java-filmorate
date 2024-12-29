@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @Component
@@ -23,13 +24,19 @@ public class InMemoryFilmStorage implements FilmStorage {
         return films.values();
     }
 
-    public Film findFilmById(Long id) {
+    public Optional<Film> findFilmById(Long id) {
         log.info("Получение фильма по id.");
         Film film = films.get(id);
         if (film == null) {
-            throw new NotFoundException("Фильм с Id " + id + " не найден");
+            return Optional.empty();
+        } else {
+            return Optional.of(film);
         }
-        return film;
+    }
+
+    public Film getFilmById(Long id) {
+        return findFilmById(id)
+                .orElseThrow(() -> new NotFoundException("Фильм с Id " + id + " не найден"));
     }
 
     public Film create(Film film) {

@@ -33,8 +33,8 @@ public class InMemoryFilmService  implements FilmService {
         checkId(id);
         checkId(userId);
 
-        Film film = filmStorage.findFilmById(id);
-        User user = userStorage.findUserById(userId);
+        Film film = filmStorage.getFilmById(id);
+        User user = userStorage.getUserById(userId);
 
         // если пользователь и фильм найдены и все условия соблюдены, добавляем лайк от пользователя
         Set<Long> userLikes = film.getLikes();
@@ -56,8 +56,8 @@ public class InMemoryFilmService  implements FilmService {
         checkId(id);
         checkId(userId);
 
-        Film film = filmStorage.findFilmById(id);
-        User user = userStorage.findUserById(userId);
+        Film film = filmStorage.getFilmById(id);
+        User user = userStorage.getUserById(userId);
 
         // если пользователь и фильм найдены и все условия соблюдены, удаляем лайк от пользователя
         Set<Long> userLikes = film.getLikes();
