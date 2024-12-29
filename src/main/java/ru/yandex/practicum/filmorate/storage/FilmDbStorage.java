@@ -151,6 +151,7 @@ public class FilmDbStorage implements FilmStorage {
 
         }
     }
+
     private void checkConditions(Film film) {
         try {
             Rating mpa = film.getMpa();
