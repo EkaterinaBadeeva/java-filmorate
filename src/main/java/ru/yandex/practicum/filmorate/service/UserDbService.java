@@ -1,38 +1,69 @@
 package ru.yandex.practicum.filmorate.service;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.filmorate.dto.UserDto;
 import ru.yandex.practicum.filmorate.exception.CommonException;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
+import ru.yandex.practicum.filmorate.mappers.UserMapper;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.UserStorage;
 import ru.yandex.practicum.filmorate.storage.mappers.UserRowMapper;
 
-import java.sql.PreparedStatement;
+import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Primary
 @Service
+@RequiredArgsConstructor
 public class UserDbService implements UserService {
-
     private final UserStorage userStorage;
-    private final JdbcTemplate jdbcTemplate;
     private final UserRowMapper userRowMapper;
 
-    public UserDbService(UserStorage userStorage, JdbcTemplate jdbcTemplate, UserRowMapper userRowMapper) {
-        this.userStorage = userStorage;
-        this.jdbcTemplate = jdbcTemplate;
-        this.userRowMapper = userRowMapper;
+    public Collection<UserDto> findAllUsers() {
+        log.info("Получение списка всех пользователей.");
+        return userStorage.getAllUsers().stream()
+                .map(UserMapper::mapToUserDto)
+                .collect(Collectors.toList());
+    }
+
+    public UserDto findUserById(Long id) {
+        log.info("Получение пользователя по Id.");
+        return userStorage.getUserById(id)
+                .map(UserMapper::mapToUserDto)
+                .orElseThrow(() -> new NotFoundException("Пользователь с id " + id + " не найден"));
+    }
+
+    public UserDto create(UserDto dto) {
+        log.info("Добавление пользователя.");
+        User user = UserMapper.mapToUser(dto);
+        checkConditions(user);
+        user = userStorage.create(user);
+        return UserMapper.mapToUserDto(user);
+    }
+
+    public UserDto update(UserDto userDto) {
+        log.info("Обновление пользователя.");
+        User user = UserMapper.mapToUser(userDto);
+
+        if (userStorage.getUserById(user.getId()).isEmpty()) {
+            throw new NotFoundException("Пользователь с email = " + user.getEmail() + " не найден");
+        }
+
+        checkConditions(user);
+
+        user = userStorage.update(user);
+        return UserMapper.mapToUserDto(user);
     }
 
     //PUT /users/{id}/friends/{friendId}
     // добавление в друзья
-    public User addUserInFriends(Long id, Long friendId) {
+    public UserDto addUserInFriends(Long id, Long friendId) {
         log.info("Добавление пользователя в друзья.");
 
         // проверяем необходимые условия
@@ -41,32 +72,25 @@ public class UserDbService implements UserService {
 
         checkEqualsIds(id, friendId);
 
-        User user = userStorage.getUserById(id);
-        User friend = userStorage.getUserById(friendId);
+        User user = userStorage.getUserById(id)
+                .orElseThrow(() -> new NotFoundException("Пользователь с id " + id + " не найден"));
+        User friend = userStorage.getUserById(friendId)
+                .orElseThrow(() -> new NotFoundException("Пользователь с id " + friendId + " не найден"));
 
         if (user.getFriends().contains(friendId)) {
             throw new CommonException("Вы уже добавили этого пользователя в друзья");
         }
 
-        // если пользователь найден и все условия соблюдены, добавляем его в друзья
-        String sqlQuery = "insert into friendship(user_id, friend_id) values (?, ?);";
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbcTemplate.update(connection -> {
-            PreparedStatement stmt = connection.prepareStatement(sqlQuery, new String[]{"user_id"});
-            stmt.setLong(1, id);
-            stmt.setLong(2, friendId);
-
-            return stmt;
-        }, keyHolder);
+        userStorage.addUserInFriends(id, friendId);
 
         userRowMapper.setFriendsOfUser(user);
 
-        return friend;
+        return UserMapper.mapToUserDto(friend);
     }
 
     //DELETE /users/{id}/friends/{friendId}
     // удаление из друзей
-    public User deleteUserFromFriends(Long id, Long friendId) {
+    public UserDto deleteUserFromFriends(Long id, Long friendId) {
         log.info("Удаление пользователя из друзей.");
 
         // проверяем необходимые условия
@@ -75,42 +99,42 @@ public class UserDbService implements UserService {
 
         checkEqualsIds(id, friendId);
 
-        User user = userStorage.getUserById(id);
-        User friend = userStorage.getUserById(friendId);
+        User user = userStorage.getUserById(id)
+                .orElseThrow(() -> new NotFoundException("Пользователь с id " + id + " не найден"));
+        User friend = userStorage.getUserById(friendId)
+                .orElseThrow(() -> new NotFoundException("Пользователь с id " + friendId + " не найден"));
 
         // если пользователь найден и все условия соблюдены, удаляем его из друзей
         if (user.getFriends().contains(friendId)) {
-            String sqlQuery = "delete from friendship where user_id =? AND friend_id = ?;";
-
-            jdbcTemplate.update(sqlQuery, id, friendId);
-          //  jdbcTemplate.update(sqlQuery, friendId, id);
+            userStorage.deleteUserFromFriends(id, friendId);
         }
 
-        return userStorage.getUserById(user.getId());
+        return userStorage.getUserById(user.getId())
+                .map(UserMapper::mapToUserDto)
+                .orElseThrow(() -> new NotFoundException("Пользователь с id " + id + " не найден"));
     }
 
     //GET /users/{id}/friends
     // получение списка пользователей, являющихся друзьями пользователя.
-    public List<User> findAllUsersInFriends(Long id) {
+    public List<UserDto> findAllUsersInFriends(Long id) {
         log.info("Получение списка пользователей, являющихся друзьями пользователя.");
 
         // проверяем необходимые условия
         checkId(id);
 
-        User user = userStorage.getUserById(id);
+        User user = userStorage.getUserById(id)
+                .orElseThrow(() -> new NotFoundException("Пользователь с id " + id + " не найден"));
 
         // если пользователь найден и все условия соблюдены, то
         // получаем список пользователей, являющихся друзьями пользователя.
-        String sqlQuery = "select users.user_id, users.email, users.user_login, users.user_name, users.birthday " +
-                "from users join friendship on users.user_id = friendship.friend_id where friendship.user_id = ?";
-        List<User> friends = jdbcTemplate.query(sqlQuery, userRowMapper, id);
-
-        return friends;
+        return userStorage.findAllUsersInFriends(id).stream()
+                .map(UserMapper::mapToUserDto)
+                .collect(Collectors.toList());
     }
 
     //GET /users/{id}/friends/common/{otherId}
     // получение списка друзей, общих с другим пользователем.
-    public List<User> findCommonFriends(Long id, Long otherId) {
+    public List<UserDto> findCommonFriends(Long id, Long otherId) {
         log.info("Получение списка друзей, общих с другим пользователем.");
 
         // проверяем необходимые условия
@@ -121,13 +145,9 @@ public class UserDbService implements UserService {
 
         // если пользователи найдены и все условия соблюдены, то
         // получаем список пользователей, общих с другим пользователем.
-        String sqlQuery = "select u.user_id, u.email, u.user_login, u.user_name, u.birthday " +
-                "from friendship as f1 join friendship as f2 on f1.friend_id = f2.friend_id " +
-                "join users as u on u.user_id = f1.friend_id " +
-                "where f1.user_id = ? and  f2.user_id = ?";
-        List<User> commonFriends = jdbcTemplate.query(sqlQuery, userRowMapper, id, otherId);
-
-        return commonFriends;
+        return userStorage.findCommonFriends(id, otherId).stream()
+                .map(UserMapper::mapToUserDto)
+                .collect(Collectors.toList());
     }
 
     private void checkId(Long id) {
@@ -141,6 +161,23 @@ public class UserDbService implements UserService {
         if (id.equals(otherId)) {
             log.warn("Id пользователей не могут быть одинаковыми");
             throw new ValidationException("Id пользователей не могут быть одинаковыми");
+        }
+    }
+
+    private void checkConditions(User user) {
+        if (user.getName() == null) {
+            log.info("Не задано имя пользователя. Будет присвоено значение логина");
+            user.setName(user.getLogin());
+        }
+
+        if (user.getName().isEmpty()) {
+            log.warn("Задано пустое имя пользователя");
+            throw new ValidationException("Задано пустое имя пользователя");
+        }
+
+        if (user.getBirthday().isAfter(LocalDate.now())) {
+            log.warn("Дата рождения не может быть в будущем");
+            throw new ValidationException("Дата рождения не может быть в будущем");
         }
     }
 }

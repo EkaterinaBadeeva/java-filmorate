@@ -1,7 +1,6 @@
 package ru.yandex.practicum.filmorate.storage;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -9,19 +8,14 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.model.Rating;
-import ru.yandex.practicum.filmorate.service.GenreService;
-import ru.yandex.practicum.filmorate.service.RatingService;
 import ru.yandex.practicum.filmorate.storage.mappers.FilmRowMapper;
 
 import java.sql.PreparedStatement;
-import java.time.LocalDate;
 import java.util.*;
 
-@Slf4j
 @Primary
 @Repository
 @RequiredArgsConstructor
@@ -29,27 +23,22 @@ public class FilmDbStorage implements FilmStorage {
 
     private final JdbcTemplate jdbcTemplate;
     private final FilmRowMapper filmRowMapper;
-    private final GenreService genreService;
-    private final RatingService ratingService;
-    private static final LocalDate MIN_RELEASE_DATE = LocalDate.of(1895, 12, 28);
+    private final GenreDbStorage genreDbStorage;
+
 
     @Override
-    public Collection<Film> findAll() {
-        log.info("Получение всех фильмов.");
+    public Collection<Film> getAllFilms() {
         String sqlQuery = "select film_id, film_name, description, release_Date, duration, rating_id " +
                 "from films;";
-        Collection<Film> films = jdbcTemplate.query(sqlQuery, filmRowMapper);
-        return films;
+        return jdbcTemplate.query(sqlQuery, filmRowMapper);
     }
 
     @Override
-    public Optional<Film> findFilmById(Long id) {
-        log.info("Получение фильма по id.");
+    public Optional<Film> getFilmById(Long id) {
         String sqlQuery = "select film_id, film_name, description, release_Date, duration, rating_id " +
                 "from films where film_id = ?;";
-        Film film;
         try {
-            film = jdbcTemplate.queryForObject(sqlQuery, filmRowMapper, id);
+            Film film = jdbcTemplate.queryForObject(sqlQuery, filmRowMapper, id);
             return Optional.ofNullable(film);
         } catch (EmptyResultDataAccessException ignored) {
             return Optional.empty();
@@ -57,16 +46,7 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     @Override
-    public Film getFilmById(Long id) {
-        return findFilmById(id)
-                .orElseThrow(() -> new NotFoundException("Фильм с Id " + id + " не найден"));
-    }
-
-    @Override
     public Film create(Film newFilm) {
-        log.info("Добавление фильма.");
-        checkConditions(newFilm);
-
         String sqlQuery = "insert into films(film_name, description, release_Date, duration, rating_id) " +
                 "values (?, ?, ?, ?, ?);";
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -95,17 +75,9 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public Film update(Film newFilm) {
-        log.info("Обновление фильма.");
-
-        checkConditions(newFilm);
-
         String sqlQuery = "UPDATE films SET " +
                 "film_name = ?, description = ?, release_Date = ?, duration = ?, rating_id = ? " +
                 "where film_id = ?;";
-
-        if (findFilmById(newFilm.getId()).isEmpty()) {
-            throw new NotFoundException("Фильм с названием = " + newFilm.getName() + " не найден");
-        }
 
         Rating mpa = newFilm.getMpa();
         Integer ratingId;
@@ -122,20 +94,46 @@ public class FilmDbStorage implements FilmStorage {
                 newFilm.getDuration(),
                 ratingId,
                 newFilm.getId());
-        if (newFilm.getId() == 0) {
-            throw new ValidationException("Id должен быть указан");
-        }
+
         addGenresInFilm(newFilm.getGenres(), newFilm.getId());
         filmRowMapper.setLikesOfFilm(newFilm);
         return newFilm;
     }
 
-    private void addGenresInFilm(List<Genre> genres, Long filmId) {
-        log.info("Добавление жанра.");
+    public Film addUserLike(Long id, Long userId) {
+        String sqlQuery = "insert into likes(film_id, user_id) values (?, ?);";
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement stmt = connection.prepareStatement(sqlQuery, new String[]{"film_id"});
+            stmt.setLong(1, id);
+            stmt.setLong(2, userId);
 
+            return stmt;
+        }, keyHolder);
+
+        Film film = getFilmById(id).orElseThrow();
+        filmRowMapper.setLikesOfFilm(film);
+
+        return film;
+    }
+
+    public void deleteUserLike(Long id, Long userId) {
+        String sqlQuery = "DELETE FROM LIKES WHERE  FILM_ID =? AND USER_ID=?;";
+        jdbcTemplate.update(sqlQuery, id, userId);
+    }
+
+    public List<Film> findBestFilm(Long count) {
+        String sqlQuery = "select films.film_id, films.film_name, films.description, films.release_Date, films.duration, films.rating_id " +
+                "from films join likes on  likes.film_id = films.film_id " +
+                " group by likes.film_id order by count (likes.user_id) desc limit ?;";
+        return jdbcTemplate.query(sqlQuery, filmRowMapper, count);
+    }
+
+    private void addGenresInFilm(List<Genre> genres, Long filmId) {
         for (Genre genre : genres) {
             Integer genreId = genre.getId();
-            genreService.findGenreById(genreId);
+            genreDbStorage.getGenreById(genreId)
+                    .orElseThrow(() -> new NotFoundException("Жанр с Id " + genreId + " не найден"));
 
             String sqlQuery = "insert into film_genre(film_id, genre_id) " +
                     "values (?, ?);";
@@ -148,39 +146,6 @@ public class FilmDbStorage implements FilmStorage {
 
                 return stmt;
             }, keyHolder);
-
-        }
-    }
-
-    private void checkConditions(Film film) {
-        try {
-            Rating mpa = film.getMpa();
-            if (mpa != null) {
-                ratingService.findRatingById(mpa.getId());
-            }
-
-            List<Genre> genres = film.getGenres();
-            if (genres != null) {
-                Set<Genre> setGenre = new LinkedHashSet<>(genres);
-                genres = new ArrayList<>(setGenre);
-
-                for (Genre genre : genres) {
-                    if (genre != null) {
-                        genreService.findGenreById(genre.getId());
-                    }
-                }
-
-                film.setGenres(genres);
-            } else {
-                film.setGenres(new ArrayList<>());
-            }
-        } catch (Exception e) {
-            throw new ValidationException(e.getMessage());
-        }
-
-        if (film.getReleaseDate().isBefore(MIN_RELEASE_DATE)) {
-            log.warn("Указанна дата релиза раньше 28 декабря 1895 года");
-            throw new ValidationException("Дата релиза — не раньше 28 декабря 1895 года");
         }
     }
 

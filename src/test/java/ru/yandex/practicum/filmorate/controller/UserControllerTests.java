@@ -26,14 +26,14 @@ public class UserControllerTests {
 
     @BeforeEach
     public void beforeEach() {
-        userStorage.insertUserData("123@mail.ru", "login1","name1", "2000-01-01");
-        userStorage.insertUserData("321@mail.ru", "login2","name2", "2000-02-02");
+        userStorage.insertUserData("123@mail.ru", "login1", "name1", "2000-01-01");
+        userStorage.insertUserData("321@mail.ru", "login2", "name2", "2000-02-02");
     }
 
     @Test
     public void testFindUserById() {
 
-        Optional<User> userOptional = userStorage.findUserById(1L);
+        Optional<User> userOptional = userStorage.getUserById(1L);
 
         assertNotEquals(userOptional, Optional.empty(), "Пустое значение");
         assertThat(userOptional)

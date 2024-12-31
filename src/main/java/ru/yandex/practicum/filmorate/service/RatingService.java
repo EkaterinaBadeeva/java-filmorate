@@ -2,43 +2,37 @@ package ru.yandex.practicum.filmorate.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.filmorate.dto.RatingDto;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.mappers.RatingMapper;
 import ru.yandex.practicum.filmorate.model.Rating;
-import ru.yandex.practicum.filmorate.storage.mappers.RatingRowMapper;
+import ru.yandex.practicum.filmorate.storage.RatingDbStorage;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class RatingService {
-    private final JdbcTemplate jdbcTemplate;
-    private final RatingRowMapper ratingRowMapper;
+    private final RatingDbStorage ratingDbStorage;
 
-    public List<Rating> findAllRating() {
+    public List<RatingDto> findAllRating() {
         log.info("Получение всех рейтингов.");
-        String sqlQuery = "select rating_id, rating_name " +
-                "from rating;";
-
-        List<Rating> ratings = jdbcTemplate.query(sqlQuery,ratingRowMapper);
-        return ratings;
+        return ratingDbStorage.getAllRating().stream()
+                .map(RatingMapper::mapToRatingDto)
+                .collect(Collectors.toList());
     }
 
-    public Rating findRatingById(int id) {
+    public RatingDto findRatingById(int id) {
         log.info("Получение рейтинга по id.");
+        return ratingDbStorage.getRatingById(id)
+                .map(RatingMapper::mapToRatingDto)
+                .orElseThrow(() -> new NotFoundException("Рейтинг с Id " + id + " не найден"));
+    }
 
-        String sqlQuery = "select  rating_id, rating_name " +
-                "from rating where rating_id = ?;";
-        Rating rating;
-        try {
-            rating = jdbcTemplate.queryForObject(sqlQuery, ratingRowMapper, id);
-
-            return rating;
-        } catch (EmptyResultDataAccessException ignored) {
-            throw new NotFoundException("Рейтинг с Id " + id + " не найден");
-        }
+    public Rating getRatingOfFilm(Long id) {
+        return ratingDbStorage.getRatingOfFilm(id);
     }
 }

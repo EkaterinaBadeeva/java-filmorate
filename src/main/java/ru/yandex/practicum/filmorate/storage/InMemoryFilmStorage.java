@@ -7,10 +7,7 @@ import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 
 import java.time.LocalDate;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Slf4j
 @Component
@@ -19,12 +16,12 @@ public class InMemoryFilmStorage implements FilmStorage {
     private final Map<Long, Film> films = new HashMap<>();
     private static final LocalDate MIN_RELEASE_DATE = LocalDate.of(1895, 12, 28);
 
-    public Collection<Film> findAll() {
+    public Collection<Film> getAllFilms() {
         log.info("Получение всех фильмов.");
         return films.values();
     }
 
-    public Optional<Film> findFilmById(Long id) {
+    public Optional<Film> getFilmById(Long id) {
         log.info("Получение фильма по id.");
         Film film = films.get(id);
         if (film == null) {
@@ -34,20 +31,7 @@ public class InMemoryFilmStorage implements FilmStorage {
         }
     }
 
-    public Film getFilmById(Long id) {
-        return findFilmById(id)
-                .orElseThrow(() -> new NotFoundException("Фильм с Id " + id + " не найден"));
-    }
-
     public Film create(Film film) {
-        log.info("Добавление фильма.");
-        // проверяем выполнение необходимых условий
-
-        if (film.getReleaseDate().isBefore(MIN_RELEASE_DATE)) {
-            log.warn("Указанна дата релиза раньше 28 декабря 1895 года");
-            throw new ValidationException("Дата релиза — не раньше 28 декабря 1895 года");
-        }
-
         // формируем дополнительные данные
         film.setId(getNextId());
 
@@ -57,11 +41,6 @@ public class InMemoryFilmStorage implements FilmStorage {
     }
 
     public Film update(Film newFilm) {
-        log.info("Обновление фильма.");
-        // проверяем необходимые условия
-        if (newFilm.getId() == null) {
-            throw new ValidationException("Id должен быть указан");
-        }
 
         if (films.containsKey(newFilm.getId())) {
             Film oldFilm = films.get(newFilm.getId());
@@ -91,6 +70,35 @@ public class InMemoryFilmStorage implements FilmStorage {
             return oldFilm;
         }
         throw new NotFoundException("Фильм с названием = " + newFilm.getName() + " не найден");
+    }
+
+    @Override
+    public Film addUserLike(Long id, Long userId) {
+        Film film = getFilmById(id).orElseThrow();
+
+        Set<Long> userLikes = film.getLikes();
+        if (userLikes == null) {
+            userLikes = new HashSet<Long>();
+        }
+        userLikes.add(userId);
+        film.setLikes(userLikes);
+
+        return film;
+    }
+
+    @Override
+    public void deleteUserLike(Long id, Long userId) {
+        Film film = getFilmById(id).orElseThrow();
+
+        Set<Long> userLikes = film.getLikes();
+
+        userLikes.remove(userId);
+        film.setLikes(userLikes);
+    }
+
+    @Override
+    public List<Film> findBestFilm(Long count) {
+        return List.of();
     }
 
     // вспомогательный метод для генерации идентификатора нового пользователя

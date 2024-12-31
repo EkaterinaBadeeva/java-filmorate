@@ -15,7 +15,7 @@ public class GenreMapper {
         return genreDto;
     }
 
-    public static Genre mapToFilm(GenreDto genreDto) {
+    public static Genre mapToGenre(GenreDto genreDto) {
         Genre genre = Genre.builder()
                 .id(genreDto.getId())
                 .name(genreDto.getName())

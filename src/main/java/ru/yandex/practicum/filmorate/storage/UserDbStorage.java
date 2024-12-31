@@ -8,14 +8,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.mappers.UserRowMapper;
 
 import java.sql.PreparedStatement;
-import java.time.LocalDate;
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -29,17 +27,14 @@ public class UserDbStorage implements UserStorage {
     private final UserRowMapper userRowMapper;
 
     @Override
-    public Collection<User> findAll() {
-        log.info("Получение списка всех пользователей.");
+    public Collection<User> getAllUsers() {
         String sqlQuery = "select user_id, email, user_login, user_name, birthday " +
                 "from users;";
-        Collection<User> users = jdbcTemplate.query(sqlQuery, userRowMapper);
-        return users;
+        return jdbcTemplate.query(sqlQuery, userRowMapper);
     }
 
     @Override
-    public Optional<User> findUserById(Long id) {
-        log.info("Получение пользователя по Id.");
+    public Optional<User> getUserById(Long id) {
         String sqlQuery = "select user_id, email, user_login, user_name, birthday " +
                 "from users where user_id = ?;";
         User user;
@@ -52,15 +47,7 @@ public class UserDbStorage implements UserStorage {
     }
 
     @Override
-    public User getUserById(Long id) {
-        return findUserById(id)
-                .orElseThrow(() -> new NotFoundException("Пользователь с id " + id + " не найден"));
-    }
-
-    @Override
     public User create(User user) {
-        log.info("Добавление пользователя.");
-        checkConditions(user);
         String sqlQuery = "insert into users(email, user_login, user_name, birthday) " +
                 "values ( ?, ?, ?, ?)";
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -79,50 +66,56 @@ public class UserDbStorage implements UserStorage {
     }
 
     @Override
-    public User update(User newUser) {
-        log.info("Обновление пользователя.");
-
+    public User update(User user) {
         String sqlQuery = "UPDATE users SET " +
                 "email = ?, user_login = ?, user_name = ?, birthday = ? " +
                 "where user_id = ?;";
 
-        if (findUserById(newUser.getId()).isEmpty()) {
-            throw new NotFoundException("Пользователь с email = " + newUser.getEmail() + " не найден");
-        }
-
-        checkConditions(newUser);
-
         jdbcTemplate.update(sqlQuery,
-                newUser.getEmail(),
-                newUser.getLogin(),
-                newUser.getName(),
-                newUser.getBirthday(),
-                newUser.getId());
+                user.getEmail(),
+                user.getLogin(),
+                user.getName(),
+                user.getBirthday(),
+                user.getId());
 
-        if (newUser.getId() == 0) {
-            log.warn("Id должен быть указан");
-            throw new ValidationException("Id должен быть указан");
-        }
+        userRowMapper.setFriendsOfUser(user);
 
-        userRowMapper.setFriendsOfUser(newUser);
-
-        return newUser;
+        return user;
     }
 
-    private void checkConditions(User user) {
-        if (user.getName() == null) {
-            user.setName(user.getLogin());
-        }
+    @Override
+    public void addUserInFriends(Long id, Long friendId) {
+        String sqlQuery = "insert into friendship(user_id, friend_id) values (?, ?);";
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement stmt = connection.prepareStatement(sqlQuery, new String[]{"user_id"});
+            stmt.setLong(1, id);
+            stmt.setLong(2, friendId);
 
-        if (user.getName().isEmpty()) {
-            log.warn("Задано пустое имя пользователя");
-            throw new ValidationException("Задано пустое имя пользователя");
-        }
+            return stmt;
+        }, keyHolder);
+    }
 
-        if (user.getBirthday().isAfter(LocalDate.now())) {
-            log.warn("Дата рождения не может быть в будущем");
-            throw new ValidationException("Дата рождения не может быть в будущем");
-        }
+    @Override
+    public void deleteUserFromFriends(Long id, Long friendId) {
+        String sqlQuery = "delete from friendship where user_id =? AND friend_id = ?;";
+        jdbcTemplate.update(sqlQuery, id, friendId);
+    }
+
+    @Override
+    public List<User> findAllUsersInFriends(Long id) {
+        String sqlQuery = "select users.user_id, users.email, users.user_login, users.user_name, users.birthday " +
+                "from users join friendship on users.user_id = friendship.friend_id where friendship.user_id = ?";
+        return jdbcTemplate.query(sqlQuery, userRowMapper, id);
+    }
+
+    @Override
+    public List<User> findCommonFriends(Long id, Long otherId) {
+        String sqlQuery = "select u.user_id, u.email, u.user_login, u.user_name, u.birthday " +
+                "from friendship as f1 join friendship as f2 on f1.friend_id = f2.friend_id " +
+                "join users as u on u.user_id = f1.friend_id " +
+                "where f1.user_id = ? and  f2.user_id = ?";
+        return jdbcTemplate.query(sqlQuery, userRowMapper, id, otherId);
     }
 
     public void insertUserData(String email, String login, String name, String date) {
