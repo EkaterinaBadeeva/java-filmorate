@@ -3,10 +3,8 @@ package ru.yandex.practicum.filmorate.storage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 
-import java.time.LocalDate;
 import java.util.*;
 
 @Slf4j
@@ -14,25 +12,20 @@ import java.util.*;
 public class InMemoryUserStorage implements UserStorage {
     private final Map<Long, User> users = new HashMap<>();
 
-    public Collection<User> findAll() {
-        log.info("Получение списка всех пользователей.");
+    public Collection<User> getAllUsers() {
         return users.values();
     }
 
-    public User findUserById(Long id) {
-        log.info("Получение пользователя по Id.");
+    public Optional<User> getUserById(Long id) {
         User user = users.get(id);
         if (user == null) {
-            throw new NotFoundException("Пользователь с Id " + id + " не найден");
+            return Optional.empty();
+        } else {
+            return Optional.of(user);
         }
-        return user;
     }
 
     public User create(User user) {
-        log.info("Добавление пользователя.");
-        // проверяем выполнение необходимых условий
-        checkConditions(user);
-
         // формируем дополнительные данные
         user.setId(getNextId());
 
@@ -42,17 +35,9 @@ public class InMemoryUserStorage implements UserStorage {
     }
 
     public User update(User newUser) {
-        log.info("Обновление пользователя.");
-        // проверяем необходимые условия
-        if (newUser.getId() == null) {
-            log.warn("Id должен быть указан");
-            throw new ValidationException("Id должен быть указан");
-        }
 
         if (users.containsKey(newUser.getId())) {
             User oldUser = users.get(newUser.getId());
-
-            checkConditions(newUser);
 
             // если пользователь найден и все условия соблюдены, обновляем информацию о нём
             if (newUser.getEmail() != null) {
@@ -75,21 +60,90 @@ public class InMemoryUserStorage implements UserStorage {
         throw new NotFoundException("Пользователь с email = " + newUser.getEmail() + " не найден");
     }
 
-    // вспомогательный метод для выполнение необходимых условий (заполнение имени пользователя и валидация даты рождения)
-    private void checkConditions(User user) {
-        if (user.getName() == null) {
-            user.setName(user.getLogin());
+    @Override
+    public void addUserInFriends(Long id, Long friendId) {
+
+        User user = getUserById(id)
+                .orElseThrow(() -> new NotFoundException("Пользователь не найден с ID: " + id));
+        User friend = getUserById(friendId)
+                .orElseThrow(() -> new NotFoundException("Пользователь не найден с ID: " + friendId));
+
+        // если пользователь найден и все условия соблюдены, добавляем его в друзья
+        Set<Long> userFriends = user.getFriends();
+        if (userFriends == null) {
+            userFriends = new HashSet<Long>();
         }
 
-        if (user.getName().isEmpty()) {
-            log.warn("Задано пустое имя пользователя");
-            throw new ValidationException("Задано пустое имя пользователя");
+        userFriends.add(friendId);
+        user.setFriends(userFriends);
+
+        Set<Long> friendFriends = friend.getFriends();
+        if (friendFriends == null) {
+            friendFriends = new HashSet<Long>();
+        }
+        friendFriends.add(id);
+        friend.setFriends(friendFriends);
+    }
+
+    @Override
+    public void deleteUserFromFriends(Long id, Long friendId) {
+
+        User user = getUserById(id)
+                .orElseThrow(() -> new NotFoundException("Пользователь не найден с ID: " + id));
+        User friend = getUserById(friendId)
+                .orElseThrow(() -> new NotFoundException("Пользователь не найден с ID: " + friendId));
+
+        // если пользователь найден и все условия соблюдены, удаляем его из друзей
+        Set<Long> userFriends = user.getFriends();
+
+        userFriends.remove(friendId);
+        user.setFriends(userFriends);
+
+        Set<Long> friendFriends = friend.getFriends();
+        friendFriends.remove(id);
+        friend.setFriends(friendFriends);
+    }
+
+    @Override
+    public List<User> findAllUsersInFriends(Long id) {
+        User user = getUserById(id)
+                .orElseThrow(() -> new NotFoundException("Пользователь не найден с ID: " + id));
+        ;
+        Set<Long> idsFriends = user.getFriends();
+
+        // если пользователь найден и все условия соблюдены, то
+        // получаем список пользователей, являющихся друзьями пользователя.
+        Set<User> friends = new HashSet<>();
+        for (Long idFriend : idsFriends) {
+            User friend = getUserById(idFriend)
+                    .orElseThrow(() -> new NotFoundException("Пользователь не найден с ID: " + idFriend));
+            ;
+            friends.add(friend);
+        }
+        return (List<User>) friends;
+    }
+
+    @Override
+    public List<User> findCommonFriends(Long id, Long otherId) {
+        User user = getUserById(id)
+                .orElseThrow(() -> new NotFoundException("Пользователь не найден с ID: " + id));
+        User otherUser = getUserById(otherId)
+                .orElseThrow(() -> new NotFoundException("Пользователь не найден с ID: " + otherId));
+
+        // если пользователи найдены и все условия соблюдены, то
+        // получаем список пользователей, общих с другим пользователем.
+        Set<User> commonFriends = new HashSet<>();
+
+        for (Long idFriend : user.getFriends()) {
+            for (Long idOtherUserFriend : otherUser.getFriends()) {
+                if (Objects.equals(idFriend, idOtherUserFriend)) {
+                    commonFriends.add(getUserById(idFriend)
+                            .orElseThrow(() -> new NotFoundException("Пользователь не найден с ID: " + idFriend)));
+                }
+            }
         }
 
-        if (user.getBirthday().isAfter(LocalDate.now())) {
-            log.warn("Дата рождения не может быть в будущем");
-            throw new ValidationException("Дата рождения не может быть в будущем");
-        }
+        return (List<User>) commonFriends;
     }
 
     // вспомогательный метод для генерации идентификатора нового пользователя

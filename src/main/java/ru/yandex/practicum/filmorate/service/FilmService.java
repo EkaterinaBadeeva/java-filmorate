@@ -1,86 +1,23 @@
 package ru.yandex.practicum.filmorate.service;
 
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
-import ru.yandex.practicum.filmorate.model.Film;
-import ru.yandex.practicum.filmorate.model.User;
-import ru.yandex.practicum.filmorate.storage.FilmStorage;
-import ru.yandex.practicum.filmorate.storage.UserStorage;
+import ru.yandex.practicum.filmorate.dto.FilmDto;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.List;
 
-@Slf4j
-@Service
-public class FilmService {
-    private final FilmStorage filmStorage;
-    private final UserStorage userStorage;
+public interface FilmService {
 
-    public FilmService(FilmStorage filmStorage, UserStorage userStorage) {
-        this.filmStorage = filmStorage;
-        this.userStorage = userStorage;
-    }
+    Collection<FilmDto> findAllFilms();
 
-    //PUT /films/{id}/like/{userId}
-    // пользователь ставит лайк фильму
-    public Film addUserLike(Long id, Long userId) {
-        log.info("Добавление лайка фильму от пользователя.");
+    FilmDto findFilmById(Long id);
 
-        // проверяем необходимые условия
-        checkId(id);
-        checkId(userId);
+    FilmDto create(FilmDto filmDto);
 
-        Film film = filmStorage.findFilmById(id);
-        User user = userStorage.findUserById(userId);
+    FilmDto update(FilmDto filmDto);
 
-        // если пользователь и фильм найдены и все условия соблюдены, добавляем лайк от пользователя
-        Set<Long> userLikes = film.getLikes();
-        if (userLikes == null) {
-            userLikes = new HashSet<Long>();
-        }
-        userLikes.add(userId);
-        film.setLikes(userLikes);
+    FilmDto addUserLike(Long id, Long userId);
 
-        return film;
-    }
+    FilmDto deleteUserLike(Long id, Long userId);
 
-    //DELETE /films/{id}/like/{userId}
-    // пользователь удаляет лайк
-    public Film deleteUserLike(Long id, Long userId) {
-        log.info("Удаление лайка фильму от пользователя.");
-
-        // проверяем необходимые условия
-        checkId(id);
-        checkId(userId);
-
-        Film film = filmStorage.findFilmById(id);
-        User user = userStorage.findUserById(userId);
-
-        // если пользователь и фильм найдены и все условия соблюдены, удаляем лайк от пользователя
-        Set<Long> userLikes = film.getLikes();
-
-        userLikes.remove(userId);
-        film.setLikes(userLikes);
-
-        return film;
-    }
-
-    //GET /films/popular?count={count}
-    // возвращает список из первых count фильмов по количеству лайков
-    // Если значение параметра count не задано, возвращает первые 10
-    public List<Film> findBestFilm(Long count) {
-
-        return filmStorage.findAll().stream()
-                .sorted(Comparator.comparing((film) -> film.getLikes().size()))
-                .limit(count)
-                .toList()
-                .reversed();
-    }
-
-    private void checkId(Long id) {
-        if (id == null) {
-            log.warn("Id должен быть указан");
-            throw new ValidationException("Id должен быть указан");
-        }
-    }
+    List<FilmDto> findBestFilm(Long count);
 }

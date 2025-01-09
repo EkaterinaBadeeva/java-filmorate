@@ -1,97 +1,45 @@
 package ru.yandex.practicum.filmorate.controller;
 
+import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
+import org.springframework.context.annotation.Import;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.service.UserDbService;
+import ru.yandex.practicum.filmorate.storage.UserDbStorage;
+import ru.yandex.practicum.filmorate.storage.mappers.UserRowMapper;
 
-import java.io.IOException;
-import java.time.LocalDate;
-import java.util.Collection;
+import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
-@SpringBootTest
+@JdbcTest
+@AutoConfigureTestDatabase
+@RequiredArgsConstructor(onConstructor_ = @Autowired)
+@Import({UserDbStorage.class, UserRowMapper.class, UserController.class, UserDbService.class})
 public class UserControllerTests {
-    @Autowired
-    UserController userController;
+    private final UserDbStorage userStorage;
 
     @BeforeEach
     public void beforeEach() {
-        userController.findAll().clear();
-        User user = new User();
-        user.setId(Long.valueOf(1));
-        user.setEmail("testEmail@yandex.ru");
-        user.setName("Test User");
-        user.setLogin("User");
-        user.setBirthday(LocalDate.of(2000, 1, 1));
-        userController.create(user);
+        userStorage.insertUserData("123@mail.ru", "login1", "name1", "2000-01-01");
+        userStorage.insertUserData("321@mail.ru", "login2", "name2", "2000-02-02");
     }
 
     @Test
-    void shouldGetAllUsers() {
-        //prepare
-        User user2 = new User();
-        user2.setId(Long.valueOf(2));
-        user2.setEmail("testEmail2@yandex.ru");
-        user2.setName("Test User2");
-        user2.setLogin("User2");
-        user2.setBirthday(LocalDate.of(2000, 1, 1));
-        userController.create(user2);
+    public void testFindUserById() {
 
-        //do
-        Collection<User> users = userController.findAll();
+        Optional<User> userOptional = userStorage.getUserById(1L);
 
-        //check
-        assertEquals(2, users.size(), "Некорректное количество пользователей");
-    }
-
-    @Test
-    void shouldCreateUser() throws IOException, InterruptedException {
-        //prepare
-        User newUser = new User();
-        newUser.setId(Long.valueOf(2));
-        newUser.setEmail("testNewEmail@yandex.ru");
-        newUser.setName("Test newUser");
-        newUser.setLogin("newUser");
-        newUser.setBirthday(LocalDate.of(2005, 1, 1));
-
-        //do
-        User createdUser = userController.create(newUser);
-
-        //check
-        assertNotNull(createdUser.getId(), "Некоректный Id, Id нового пользователя равен null");
-        assertEquals(2, userController.findAll().size(), "Некорректное количество пользователей");
-        assertEquals("Test newUser", createdUser.getName(), "Некорректное имя пользователя");
-    }
-
-    @Test
-    void shouldUpdateUser() {
-        //prepare
-        User user2 = new User();
-        user2.setId(Long.valueOf(2));
-        user2.setEmail("testEmail2@yandex.ru");
-        user2.setName("Test User2");
-        user2.setLogin("User2");
-        user2.setBirthday(LocalDate.of(2000, 1, 1));
-        userController.create(user2);
-
-        User testUser = new User();
-        testUser.setId(user2.getId());
-        testUser.setEmail("testUpdatedEmail@yandex.ru");
-        testUser.setName("Test updatedUser");
-        testUser.setLogin("updatedUser");
-        testUser.setBirthday(LocalDate.of(2000, 1, 1));
-
-        //do
-        User updatedUser = userController.update(testUser);
-
-        //check
-        assertNotNull(updatedUser.getId(), "Некоректный Id, Id обновленного пользователя равен null");
-        assertEquals(user2.getId(), updatedUser.getId(), "Некоректный Id обновленного пользователя");
-        assertEquals(2, userController.findAll().size(), "Некорректное количество пользователей");
-        assertEquals("Test updatedUser", updatedUser.getName(), "Некорректное имя пользователя");
+        assertNotEquals(userOptional, Optional.empty(), "Пустое значение");
+        assertThat(userOptional)
+                .isPresent()
+                .hasValueSatisfying(user ->
+                        assertThat(user).hasFieldOrPropertyWithValue("id", 1L)
+                );
     }
 }

@@ -1,67 +1,55 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.dto.FilmDto;
 import ru.yandex.practicum.filmorate.service.FilmService;
-import ru.yandex.practicum.filmorate.storage.FilmStorage;
 
-import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.List;
 
 @Slf4j
 @RestController
 @RequestMapping("/films")
+@RequiredArgsConstructor
 public class FilmController {
-    private final FilmStorage filmStorage;
     private final FilmService filmService;
 
-    public FilmController(FilmStorage filmStorage, FilmService filmService) {
-        this.filmStorage = filmStorage;
-        this.filmService = filmService;
-    }
-
     @GetMapping
-    public Collection<Film> findAll() {
-        log.info("Получение всех фильмов.");
-        return filmStorage.findAll();
+    public Collection<FilmDto> findAll() {
+        return filmService.findAllFilms();
     }
 
     //GET /films/{id}
     // получить фильм по id
     @GetMapping("/{id}")
-    public Film findFilmById(@PathVariable Long id) {
-        log.info("Получение фильма по id.");
-        return filmStorage.findFilmById(id);
+    public FilmDto findFilmById(@PathVariable Long id) {
+        return filmService.findFilmById(id);
     }
 
     @PostMapping
-    public Film create(@Valid @RequestBody Film film) {
-        log.info("Добавление фильма.");
-        return filmStorage.create(film);
+    public FilmDto create(@Valid @RequestBody FilmDto filmDto) {
+        return filmService.create(filmDto);
     }
 
     @PutMapping
-    public Film update(@Valid @RequestBody Film newFilm) {
-        log.info("Обновление фильма.");
-        return filmStorage.update(newFilm);
+    public FilmDto update(@Valid @RequestBody FilmDto filmDto) {
+        return filmService.update(filmDto);
     }
 
     //PUT /films/{id}/like/{userId}
     // пользователь ставит лайк фильму
     @PutMapping("/{id}/like/{userId}")
-    public Film addUserLike(@PathVariable Long id, @PathVariable Long userId) {
-        log.info("Пользователь ставит лайк фильму.");
+    public FilmDto addUserLike(@PathVariable Long id, @PathVariable Long userId) {
         return filmService.addUserLike(id, userId);
     }
 
     //DELETE /films/{id}/like/{userId}
     // пользователь удаляет лайк
     @DeleteMapping("/{id}/like/{userId}")
-    public Film deleteUserLike(@PathVariable Long id, @PathVariable Long userId) {
-        log.info("Пользователь удаляет лайк фильму.");
+    public FilmDto deleteUserLike(@PathVariable Long id, @PathVariable Long userId) {
         return filmService.deleteUserLike(id, userId);
     }
 
@@ -69,8 +57,7 @@ public class FilmController {
     // возвращает список из первых count фильмов по количеству лайков
     // Если значение параметра count не задано, возращает первые 10
     @GetMapping("/popular")
-    public List<Film> findBestFilm(@RequestParam(defaultValue = "10") Long count) {
-        log.info(MessageFormat.format("Возвращает список из первых {0} фильмов по количеству лайков", count));
+    public List<FilmDto> findBestFilm(@RequestParam(defaultValue = "10") Long count) {
         return filmService.findBestFilm(count);
     }
 }
